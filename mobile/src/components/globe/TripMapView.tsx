@@ -113,12 +113,25 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
           container,
           style: { version: 8, sources, layers },
           center: [104.07, 35.5],
-          zoom: 4,
-          // NO globe projection, NO rotation — stable 2D plane
+          zoom: 2.5,
+          projection: "globe",      // True 3D globe — like 高德 maps zoomed out
+          pitch: 35,
+          bearing: 0,
           attributionControl: false,
         });
 
-        // ===== NO rotation. Map stays as stable 2D plane =====
+        // Globe atmosphere
+        map.on("style.load", () => {
+          try {
+            map.setFog({
+              color: "#f0f4fa",
+              "high-color": "#d0ddf0",
+              "horizon-blend": 0.1,
+              "space-color": "#0a1020",
+              "star-intensity": 0.3,
+            });
+          } catch {}
+        });
 
         map.on("style.load", () => {
           // Markers for each valid location
@@ -126,7 +139,7 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
             if (!loc.lat || !loc.lng || isNaN(loc.lat) || isNaN(loc.lng)) return;
             const el = document.createElement("div");
             el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer">
-              <div style="width:14px;height:14px;border-radius:50%;background:#007AFF;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.2)"></div>
+              <div style="width:14px;height:14px;border-radius:50%;background:#1A2744;border:2.5px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.15)"></div>
               <div style="background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:10px;padding:3px 8px;white-space:nowrap;border:0.5px solid rgba(0,0,0,0.08)">
                 <span style="color:#1C1C1E;font-size:11px;font-weight:600;font-family:system-ui,sans-serif">${loc.name}</span>
               </div></div>`;
@@ -134,88 +147,10 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
               .setLngLat([loc.lng, loc.lat]).addTo(map);
             el.onclick = () => onLocationPress?.(loc);
           });
-
-          // ===== Vehicle on great circle arc — only if user triggered via AI generation =====
-          const validLocs = locations.filter((l) => l.lat && l.lng && !isNaN(l.lat) && !isNaN(l.lng));
-          if (validLocs.length >= 2 && animateRoute) {
-            const routeCoords = validLocs.map((l) => [l.lng, l.lat]);
-            const turfScript = document.createElement("script");
-            turfScript.src = "https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js";
-            turfScript.onload = () => {
-              const turf = (window as any).turf;
-              if (!turf) return;
-              // Great circle arc between first and last destination
-              const start = turf.point(routeCoords[0]);
-              const end = turf.point(routeCoords[routeCoords.length - 1]);
-              const arc = turf.greatCircle(start, end, { npoints: 100 });
-              const arcCoords = arc.geometry.coordinates;
-              const line = turf.lineString(arcCoords);
-              const totalLen = turf.length(line, { units: "kilometers" });
-
-              // Strict guard: verify first point is valid
-              const startPt = turf.along(line, 0, { units: "kilometers" });
-              const startCoord = startPt?.geometry?.coordinates;
-              if (!startCoord || startCoord.length < 2 || isNaN(startCoord[0]) || isNaN(startCoord[1])) return;
-
-              // Luxury SVG airplane — white body + gold tailfin
-              const planeSVG = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5))">
-                <path d="M16 4L28 24H20L16 16L12 24H4L16 4Z" fill="white" stroke="#C9A96E" stroke-width="1.2"/>
-                <path d="M16 16L20 24H28L20 12L16 16Z" fill="#C9A96E" opacity="0.7"/>
-                <circle cx="16" cy="8" r="2" fill="#1A2744"/>
-                <line x1="8" y1="24" x2="24" y2="24" stroke="#C9A96E" stroke-width="1"/>
-              </svg>`;
-              const vehicleEl = document.createElement("div");
-              vehicleEl.innerHTML = `<div style="opacity:0;transition:opacity 0.8s ease-in,transform 0.1s linear;transform-style:preserve-3d;perspective:80px">${planeSVG}</div>`;
-              const inner = vehicleEl.firstChild as HTMLElement;
-
-              // Set initial 3D transform
-              if (inner) {
-                inner.style.transform = "rotateX(25deg) rotateZ(-5deg) scale(1.2)";
-              }
-
-              const vehicleMarker = new maplibregl.Marker({ element: vehicleEl, anchor: "center" })
-                .setLngLat(startCoord as [number, number]).addTo(map);
-
-              // Fade in + 3D entrance animation
-              requestAnimationFrame(() => {
-                if (inner) {
-                  inner.style.opacity = "1";
-                  inner.style.transform = "rotateX(15deg) rotateZ(0deg) scale(1.1)";
-                }
-              });
-
-              let progress = 0;
-              const speed = 0.001;
-              const animate = () => {
-                if (cancelled) return;
-                progress += speed;
-                if (progress > 1) progress = 0;
-                const pt = turf.along(line, progress * totalLen, { units: "kilometers" });
-                const coord = pt?.geometry?.coordinates;
-                if (!coord || isNaN(coord[0]) || isNaN(coord[1])) { requestAnimationFrame(animate); return; }
-                vehicleMarker.setLngLat(coord as [number, number]);
-                // Tilt
-                if (progress + speed <= 1) {
-                  const next = turf.along(line, (progress + speed) * totalLen, { units: "kilometers" });
-                  const nc = next?.geometry?.coordinates;
-                  if (nc && !isNaN(nc[0]) && !isNaN(nc[1])) {
-                    const dx = nc[0] - coord[0], dy = nc[1] - coord[1];
-                    const angle = Math.atan2(dx, dy) * (180 / Math.PI);
-                    // 3D flight: rotateZ for heading + subtle rotateY for banking + constant rotateX for depth
-                    const bankAngle = Math.sin(progress * Math.PI * 2) * 8;
-                    inner.style.transform = `rotateX(15deg) rotateY(${bankAngle}deg) rotateZ(${-angle}deg) scale(1.1)`;
-                  }
-                }
-                requestAnimationFrame(animate);
-              };
-              animate();
-            };
-            document.head.appendChild(turfScript);
-          }
-
-          // NO rotation — map stays fixed
           setStatus("ready");
         });
+
+        mapRef.current = map;
 
         mapRef.current = map;
       } catch (e: any) {
@@ -229,6 +164,78 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
     boot();
     return () => { cancelled = true; mapRef.current?.remove(); mapRef.current = null; };
   }, []);
+
+  // ===== Vehicle animation effect — triggered when AI generates a route =====
+  useEffect(() => {
+    if (!animateRoute || !mapRef.current || locations.length < 2) return;
+
+    const map = mapRef.current;
+    const validLocs = locations.filter((l) => l.lat && l.lng && !isNaN(l.lat) && !isNaN(l.lng));
+    if (validLocs.length < 2) return;
+
+    const routeCoords = validLocs.map((l: any) => [l.lng, l.lat]);
+    let cancelled = false;
+    const markers: any[] = [];
+
+    // Load Turf.js
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js";
+    script.onload = () => {
+      const turf = (window as any).turf;
+      if (!turf || cancelled) return;
+
+      const start = turf.point(routeCoords[0]);
+      const end = turf.point(routeCoords[routeCoords.length - 1]);
+      const arc = turf.greatCircle(start, end, { npoints: 100 });
+      const line = turf.lineString(arc.geometry.coordinates);
+      const totalLen = turf.length(line, { units: "kilometers" });
+
+      const firstPt = turf.along(line, 0, { units: "kilometers" });
+      const startCoord = firstPt?.geometry?.coordinates;
+      if (!startCoord || startCoord.length < 2 || isNaN(startCoord[0])) return;
+
+      const planeSVG = `<svg width="28" height="28" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 4px 6px rgba(0,0,0,0.5))">
+        <path d="M16 4L28 24H20L16 16L12 24H4L16 4Z" fill="white" stroke="#C9A96E" stroke-width="1.2"/>
+        <path d="M16 16L20 24H28L20 12L16 16Z" fill="#C9A96E" opacity="0.7"/>
+        <circle cx="16" cy="8" r="2" fill="#1A2744"/>
+      </svg>`;
+      const vehicleEl = document.createElement("div");
+      vehicleEl.innerHTML = `<div style="opacity:0;transition:opacity 0.8s ease-in,transform 0.1s linear;transform-style:preserve-3d;perspective:80px">${planeSVG}</div>`;
+      const inner = vehicleEl.firstChild as HTMLElement;
+      if (inner) inner.style.transform = "rotateX(20deg) scale(1.15)";
+
+      const vm = new (window as any).maplibregl.Marker({ element: vehicleEl, anchor: "center" })
+        .setLngLat(startCoord as [number, number]).addTo(map);
+      markers.push(vm);
+
+      requestAnimationFrame(() => { if (inner) { inner.style.opacity = "1"; inner.style.transform = "rotateX(12deg) scale(1.1)"; } });
+
+      let progress = 0;
+      const animate = () => {
+        if (cancelled) { vm.remove(); return; }
+        progress += 0.0012;
+        if (progress > 1) progress = 0;
+        const pt = turf.along(line, progress * totalLen, { units: "kilometers" });
+        const coord = pt?.geometry?.coordinates;
+        if (!coord || isNaN(coord[0])) { requestAnimationFrame(animate); return; }
+        vm.setLngLat(coord as [number, number]);
+        if (progress + 0.0012 <= 1) {
+          const next = turf.along(line, (progress + 0.0012) * totalLen, { units: "kilometers" });
+          const nc = next?.geometry?.coordinates;
+          if (nc && !isNaN(nc[0])) {
+            const angle = Math.atan2(nc[0] - coord[0], nc[1] - coord[1]) * (180 / Math.PI);
+            const bank = Math.sin(progress * Math.PI * 2) * 6;
+            if (inner) inner.style.transform = `rotateX(12deg) rotateY(${bank}deg) rotateZ(${-angle}deg) scale(1.1)`;
+          }
+        }
+        requestAnimationFrame(animate);
+      };
+      animate();
+    };
+    document.head.appendChild(script);
+
+    return () => { cancelled = true; markers.forEach((m) => m.remove()); };
+  }, [animateRoute]);
 
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
