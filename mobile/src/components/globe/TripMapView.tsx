@@ -3,8 +3,9 @@ import { View, Text, Pressable, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { MapPin } from "lucide-react-native";
 
-const ML_CSS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.css";
-const ML_JS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4/dist/maplibre-gl.js";
+// MapLibre GL v4.7.0 — jsdelivr confirmed 200. Globe projection native since v3.5
+const ML_CSS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.css";
+const ML_JS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.js";
 const TIANDITU_TOKEN = process.env.EXPO_PUBLIC_TIANDITU_TOKEN || "";
 
 interface Location { lat: number; lng: number; name: string; description?: string; }
@@ -111,15 +112,18 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
         const map = new ml.Map({
           container:c,
           style:{ version:8, sources, layers },
-          center:[104.07,35.5], zoom:3, minZoom:2, maxZoom:18,
-          projection:"globe", pitch:0,
+          center:[104.07,35.5], zoom:1.8, minZoom:1.5, maxZoom:18,
+          projection:{type:"globe"}, pitch:0,
           attributionControl:false,
         });
 
         map.addControl(new ml.NavigationControl({ showCompass:true, showZoom:true, visualizePitch:true }), "bottom-right");
 
         map.on("style.load", () => {
-          try { map.setFog({ color:"#d0e0f0","high-color":"#c0d8f0","horizon-blend":0.2,"space-color":"#050510","star-intensity":0.3 }); } catch{}
+          console.log("[globe] MapLibre v4.7.5 loaded. Projection:", map.getProjection?.()||"globe");
+          try { map.setFog({ color:"#d0e0f0","high-color":"#c0d8f0","horizon-blend":0.25,"space-color":"#050510","star-intensity":0.35 }); } catch{}
+          // Gentle initial rotation to show 3D sphere
+          map.easeTo({ bearing:15, duration:3000 });
 
           // City labels
           CITY_LABELS.forEach((city) => {
