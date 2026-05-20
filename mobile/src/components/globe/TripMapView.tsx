@@ -21,7 +21,6 @@ interface Props {
   isGenerating?: boolean;
   animateRoute?: boolean;
 }
-}
 
 // Script tag injection — bypasses Metro bundler entirely
 function injectCSS(href: string) {
