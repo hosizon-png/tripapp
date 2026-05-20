@@ -43,6 +43,7 @@
     "expo-system-ui": "~55.0.18",
     "expo-web-browser": "~55.0.16",
     "lucide-react-native": "^1.16.0",
+    "maplibre-gl": "^4.7.0",
     "moti": "^0.30.0",
     "nativewind": "^4.2.4",
     "react": "19.2.0",
