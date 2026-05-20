@@ -23,7 +23,7 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
       }}
     >
-      <Tabs.Screen name="globe" options={{ title: "探索", tabBarIcon: ({ color, size }) => <Globe size={size} color={color} /> }} />
+      <Tabs.Screen name="globe" options={{ title: "探索", tabBarIcon: ({ color, size }) => <Globe size={size} color={color} />, tabBarStyle: { display: "none" } }} />
       <Tabs.Screen name="discover" options={{ title: "发现", tabBarIcon: ({ color, size }) => <Compass size={size} color={color} /> }} />
       <Tabs.Screen name="profile" options={{ title: "我的", tabBarIcon: ({ color, size }) => <User size={size} color={color} /> }} />
     </Tabs>

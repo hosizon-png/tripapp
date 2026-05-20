@@ -49,12 +49,12 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
         src.term={type:"geojson",data:{type:"Feature",geometry:{type:"Polygon",coordinates:computeTerminator()}}};
         lyr.push({id:"night",type:"fill",source:"term",paint:{"fill-color":"#000010","fill-opacity":0.38}});
 
-        const map=new ml.Map({container:ct,style:{version:8,sources:src,layers:lyr},center:[104.07,35.5],zoom:1.5,minZoom:1,maxZoom:18,projection:"globe",pitch:25,bearing:0,attributionControl:false});
+        const map=new ml.Map({container:ct,style:{version:8,sources:src,layers:lyr},center:[104.07,35.5],zoom:1.8,minZoom:1,maxZoom:18,projection:{name:"globe"},pitch:25,bearing:0,attributionControl:false});
         mRef.current=map;
 
         map.on("style.load",()=>{
           console.log("[globe] v4.7.0 loaded, projection:",map.getProjection?.());
-          map.setFog({"space-color":"#000000","horizon-blend":0.18,"star-intensity":0.4,color:"#b0c8e8","high-color":"#a0c0e0"});
+          map.setFog({color:"rgba(10,10,15,1)","high-color":"rgba(30,40,60,1)","horizon-blend":0.1,"space-color":"rgba(0,0,0,1)","star-intensity":0.8});
           // City labels
           CITIES.forEach(c=>{const el=document.createElement("div");el.innerHTML=`<div style="font-size:9px;color:#fff;font-weight:500;text-shadow:0 1px 3px rgba(0,0,0,0.8);white-space:nowrap;opacity:0.7">${c.n}</div>`;new ml.Marker({element:el,anchor:"center"}).setLngLat([c.lng,c.lat]).addTo(map);});
           // User markers
