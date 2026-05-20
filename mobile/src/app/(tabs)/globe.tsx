@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { View, Text, TextInput, Pressable } from "react-native";
+import { View, Text, TextInput, Pressable, ScrollView, KeyboardAvoidingView, Platform } from "react-native";
 import { BlurView } from "expo-blur";
 import { Sparkles, Send, MapPin, Sun, Moon } from "lucide-react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
@@ -126,71 +126,101 @@ export default function AIGlobeScreen() {
         </Pressable>
       </SafeAreaView>
 
-      {/* AI Console Panel — glass bottom sheet */}
-      <SafeAreaView edges={["bottom"]} style={{ position:"absolute", bottom:0, left:0, right:0 }} pointerEvents="box-none">
-        <BlurView intensity={70} tint="dark"
+      {/* AI Console Panel — compact, transparent glass, keyboard-safe */}
+      <KeyboardAvoidingView behavior={Platform.OS==="ios"?"padding":"height"} style={{ position:"absolute", bottom:0, left:0, right:0 }} pointerEvents="box-none">
+      <SafeAreaView edges={["bottom"]} pointerEvents="box-none">
+        <BlurView intensity={40} tint="dark"
           style={{
-            marginHorizontal: 16, marginBottom: 12, borderRadius: 24, overflow:"hidden",
-            backgroundColor: "rgba(0,0,0,0.45)", borderWidth: 0.5, borderColor: "rgba(255,255,255,0.12)",
-            padding: 20,
+            marginHorizontal: 20, marginBottom: 8, borderRadius: 20, overflow:"hidden",
+            backgroundColor: "rgba(0,0,0,0.28)", borderWidth: 0.5, borderColor: "rgba(255,255,255,0.10)",
+            padding: 14,
           }}>
           {generating ? (
-            <View style={{ alignItems:"center", gap:10 }}>
-              <Sparkles size={24} color="#007AFF" />
-              <Text style={{ color:"#FFF", fontSize:15, fontWeight:"600" }}>AI 正在规划</Text>
-              <Text style={{ color:"rgba(255,255,255,0.5)", fontSize:13 }}>{genStep}</Text>
-              <View style={{ height:2, backgroundColor:"rgba(255,255,255,0.1)", borderRadius:1, width:"100%", marginTop:4 }}>
-                <View style={{ height:2, backgroundColor:"#007AFF", borderRadius:1, width:"60%" }} />
+            <View style={{ alignItems:"center", gap:8 }}>
+              <Sparkles size={20} color="#C9A96E" />
+              <Text style={{ color:"#FFF", fontSize:14, fontWeight:"600" }}>AI 正在规划</Text>
+              <Text style={{ color:"rgba(255,255,255,0.4)", fontSize:12 }}>{genStep}</Text>
+              <View style={{ height:2, backgroundColor:"rgba(255,255,255,0.08)", borderRadius:1, width:"100%" }}>
+                <View style={{ height:2, backgroundColor:"#C9A96E", borderRadius:1, width:"60%" }} />
               </View>
             </View>
           ) : aiResult ? (
-            /* ---- Bento Categorized Results ---- */
+            /* ---- Result: Budget top + compact timeline ---- */
             <View>
-              <View style={{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+              <View style={{ flexDirection:"row", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                 <Text style={{ color:"#FFF", fontSize:14, fontWeight:"700" }}>✨ {genStep}</Text>
                 <Pressable onPress={() => { setAiResult(null); setAiContext(""); }}>
-                  <Text style={{ color:"rgba(255,255,255,0.4)", fontSize:11 }}>关闭</Text>
+                  <Text style={{ color:"rgba(255,255,255,0.35)", fontSize:11 }}>关闭</Text>
                 </Pressable>
               </View>
               {aiResult?.cost && <CostBreakdown items={aiResult.cost} />}
-              {aiResult?.weather && <DayCardStrip title="天气预报" icon="🌤️" items={aiResult.weather} color="#007AFF" />}
-              {aiResult?.spots && <DayCardStrip title="推荐景点" icon="📍" items={aiResult.spots.map((s:any) => ({...s, icon:"🏛️"}))} color="#FF9500" />}
-              {aiResult?.food && <DayCardStrip title="必吃美食" icon="🍜" items={aiResult.food.map((f:any) => ({...f, icon:"🍽️"}))} color="#FF3B30" />}
+              {/* Compact daily timeline */}
+              {aiResult?.spots && aiResult.spots.length > 0 && (
+                <View style={{ marginTop:8, maxHeight:180 }}>
+                  <ScrollView showsVerticalScrollIndicator={false} style={{ gap:6 }}>
+                    {Object.entries(
+                      (aiResult.spots as any[]).reduce((acc:any,s:any)=>{
+                        const d=`第${s.day||'?'}天`;if(!acc[d])acc[d]=[];acc[d].push(s);return acc;
+                      },{})
+                    ).map(([day,spots]:[string,any])=>(
+                      <View key={day} style={{ marginBottom:6 }}>
+                        <Text style={{ color:"rgba(255,255,255,0.4)", fontSize:11, fontWeight:"600", marginBottom:4 }}>{day}</Text>
+                        {(spots as any[]).map((s:any,i:number)=>(
+                          <View key={i} style={{ flexDirection:"row", alignItems:"center", gap:6, paddingVertical:3 }}>
+                            <View style={{ width:6,height:6,borderRadius:3,backgroundColor:"#C9A96E" }}/>
+                            <Text style={{ color:"rgba(255,255,255,0.7)", fontSize:13, flex:1 }} numberOfLines={1}>{s.name||s.placeName}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
             </View>
           ) : aiQuestion ? (
-            /* ---- AI needs more info ---- */
             <View>
-              <View style={{ flexDirection:"row", alignItems:"center", gap:8, marginBottom:2 }}>
-                <Sparkles size={16} color="#007AFF" />
-                <Text style={{ color:"#FFF", fontSize:15, fontWeight:"600", flex:1 }}>{aiQuestion}</Text>
+              <View style={{ flexDirection:"row", alignItems:"center", gap:6, marginBottom:2 }}>
+                <Sparkles size={14} color="#C9A96E" />
+                <Text style={{ color:"#FFF", fontSize:14, fontWeight:"600", flex:1 }}>{aiQuestion}</Text>
               </View>
               <SmartChipBar suggestions={aiSuggestions} onSelect={onChipSelect} />
-              <Pressable onPress={() => { setAiQuestion(""); setAiSuggestions({}); setAiContext(""); }}
-                style={{ alignSelf:"flex-end", marginTop:4 }}>
-                <Text style={{ color:"rgba(255,255,255,0.3)", fontSize:12 }}>重新输入</Text>
+              <Pressable onPress={() => { setAiQuestion(""); setAiSuggestions({}); setAiContext(""); }} style={{ alignSelf:"flex-end", marginTop:2 }}>
+                <Text style={{ color:"rgba(255,255,255,0.25)", fontSize:11 }}>重新输入</Text>
               </Pressable>
             </View>
           ) : (
-            /* ---- Default Input ---- */
+            /* ---- Default Input with suggestion chips ---- */
             <>
-              <View style={{ flexDirection:"row", alignItems:"center", gap:8 }}>
+              {/* Suggestion chips */}
+              <View style={{ flexDirection:"row", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+                {["几天比较好？","帮我推荐景点","大概花多少钱","当地有什么好吃的"].map((chip)=>(
+                  <Pressable key={chip} onPress={() => { setPrompt(chip); handleGenerate(chip); }}
+                    style={{ paddingHorizontal:12, paddingVertical:6, borderRadius:14, backgroundColor:"rgba(255,255,255,0.08)", borderWidth:0.5, borderColor:"rgba(255,255,255,0.12)" }}>
+                    <Text style={{ color:"rgba(255,255,255,0.65)", fontSize:12 }}>{chip}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {/* Input row */}
+              <View style={{ flexDirection:"row", alignItems:"center", gap:6 }}>
                 <TextInput
-                  placeholder='例："日本关西5天，喜欢历史和美食"'
-                  placeholderTextColor="rgba(255,255,255,0.3)"
+                  placeholder='输入旅行需求...'
+                  placeholderTextColor="rgba(255,255,255,0.25)"
                   value={prompt}
                   onChangeText={setPrompt}
-                  multiline numberOfLines={2}
-                  style={{ flex:1, backgroundColor:"rgba(255,255,255,0.08)", borderRadius:16, paddingHorizontal:16, paddingVertical:12, fontSize:14, color:"#FFF", minHeight:44, textAlignVertical:"center" }}
+                  onSubmitEditing={() => handleGenerate()}
+                  returnKeyType="send"
+                  style={{ flex:1, backgroundColor:"rgba(255,255,255,0.06)", borderRadius:14, paddingHorizontal:14, paddingVertical:10, fontSize:14, color:"#FFF", minHeight:40, textAlignVertical:"center" }}
                 />
                 <Pressable onPress={() => handleGenerate()} disabled={!prompt.trim()}
-                  style={{ width:44, height:44, borderRadius:22, backgroundColor: prompt.trim() ? "#007AFF" : "rgba(255,255,255,0.08)", alignItems:"center", justifyContent:"center" }}>
-                  <Send size={18} color={prompt.trim() ? "#FFF" : "rgba(255,255,255,0.3)"} />
+                  style={{ width:38, height:38, borderRadius:19, backgroundColor: prompt.trim() ? "#C9A96E" : "rgba(255,255,255,0.06)", alignItems:"center", justifyContent:"center" }}>
+                  <Send size={16} color={prompt.trim() ? "#1A2744" : "rgba(255,255,255,0.2)"} />
                 </Pressable>
               </View>
             </>
           )}
         </BlurView>
       </SafeAreaView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
