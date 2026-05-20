@@ -56,8 +56,8 @@ export default function AIGlobeScreen() {
   return (
     <View style={{flex:1,backgroundColor:"#000"}}>
       {/* ====== BACKGROUND: Full-screen 3D Globe ====== */}
-      <TripMapView locations={locs} focusLocation={focusLoc} animateRoute={!!aiRes}
-        onLocationPress={(loc)=>{const t=trips.find((x:any)=>x.title===loc.name);if(t)router.push(`/trips/${t.id}`);}}/>
+      <TripMapView locations={locs} animateRoute={!!aiRes}
+        onLocationPress={(loc: any)=>{const t=trips.find((x:any)=>x.title===loc.name);if(t)router.push(`/trips/${t.id}`);}}/>
 
       {/* ====== FLOATING LEFT SIDEBAR ====== */}
       <SafeAreaView edges={["top","bottom","left"]} style={{position:"absolute",top:0,left:0,bottom:0,width:PANEL_W}} pointerEvents="box-none">
