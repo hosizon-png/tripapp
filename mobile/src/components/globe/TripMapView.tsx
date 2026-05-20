@@ -4,8 +4,9 @@ import { BlurView } from "expo-blur";
 import { MapPin } from "lucide-react-native";
 
 // MapLibre GL v4.7.0 — jsdelivr confirmed 200. Globe projection native since v3.5
-const ML_CSS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.css";
-const ML_JS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.js";
+// MapLibre v4.7.0 — 200 OK, projection:globe confirmed in source
+const ML_CSS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.css?v=2";
+const ML_JS = "https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.0/dist/maplibre-gl.js?v=2";
 const TIANDITU_TOKEN = process.env.EXPO_PUBLIC_TIANDITU_TOKEN || "";
 
 interface Location { lat: number; lng: number; name: string; description?: string; }
@@ -112,8 +113,8 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
         const map = new ml.Map({
           container:c,
           style:{ version:8, sources, layers },
-          center:[104.07,35.5], zoom:1.8, minZoom:1.5, maxZoom:18,
-          projection:{type:"globe"}, pitch:0,
+          center:[104.07,35.5], zoom:1.5, minZoom:1.5, maxZoom:18,
+          projection:"globe", pitch:30, bearing:15,
           attributionControl:false,
         });
 
