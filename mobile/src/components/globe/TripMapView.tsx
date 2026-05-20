@@ -84,7 +84,12 @@ function WebGlobe({ locations, onLocationPress, animateRoute, coordinates=[] }: 
 
       mRef.current = map;
 
-      map.on("style.load", () => {
+      // Safety timeout: force ready after 8s even if tiles load slow
+      const safetyTimer = setTimeout(() => { if (!cancelled) { console.log("[globe] safety timeout"); setStatus("ready"); } }, 8000);
+
+      const onReady = () => {
+        clearTimeout(safetyTimer);
+        if (cancelled) return;
         console.log("[globe] npm maplibre-gl loaded. Projection:", (map as any).getProjection?.());
         (map as any).setFog({ color:"rgba(10,10,15,1)","high-color":"rgba(24,28,41,1)","horizon-blend":0.15,"space-color":"rgba(5,5,8,1)","star-intensity":0.9 });
 
@@ -103,7 +108,11 @@ function WebGlobe({ locations, onLocationPress, animateRoute, coordinates=[] }: 
         });
 
         setStatus("ready");
-      });
+      };
+      // Listen to both events for reliability
+      map.on("load", onReady);
+      map.on("style.load", onReady);
+      map.on("error", (e: any) => { console.warn("[globe] tile error (non-fatal):", e?.error?.message || e); });
 
       const ti = setInterval(() => {
         if (cancelled) return;
