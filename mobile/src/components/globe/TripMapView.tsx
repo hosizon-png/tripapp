@@ -53,7 +53,8 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
 
         const isDark = (window as any).__tripapp_theme === "dark";
 
-        // Use OSM tiles — supports zoom 0-19, globe looks best at zoom 1-2
+        // True 3D globe that transitions to flat + 3D buildings at high zoom
+        // Inspired by 高德地图: expandZoomRange + viewMode:3D + pitch + buildingAnimation
         const map = new maplibregl.Map({
           container,
           style: {
@@ -62,21 +63,25 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
             layers: [{ id: "osm", type: "raster", source: "osm" }],
           },
           center: [104.07, 35.5],
-          zoom: 1.8,               // Ultra-low zoom → entire sphere visible
-          projection: "globe",      // True 3D globe projection
-          pitch: 25,
+          zoom: 3,                    // Start at globe view
+          minZoom: 2,                 // Wide zoom range like 高德 zooms:[3,20]
+          maxZoom: 18,
+          projection: "globe",        // Auto-transitions: globe(<5) → flat(>5) → 3D tilt
+          pitch: 0,                   // Initially flat, user tilts for 3D buildings
           attributionControl: false,
         });
 
+        // Navigation: zoom buttons + tilt/rotate
+        map.addControl(new maplibregl.NavigationControl({ showCompass: true, showZoom: true, visualizePitch: true }), "bottom-right");
+
         map.on("style.load", () => {
           try {
-            // Strong fog to make globe edges clearly visible
             map.setFog({
               color: isDark ? "#050510" : "#d8e4f0",
               "high-color": isDark ? "#101830" : "#c0d4e8",
-              "horizon-blend": 0.3,
+              "horizon-blend": 0.25,
               "space-color": "#050510",
-              "star-intensity": 0.4,
+              "star-intensity": 0.35,
             });
           } catch {}
           // Markers
