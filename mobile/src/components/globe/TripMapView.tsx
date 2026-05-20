@@ -19,6 +19,8 @@ interface Props {
   onLocationPress?: (loc: Location) => void;
   focusLocation?: { lat: number; lng: number; zoom?: number } | null;
   isGenerating?: boolean;
+  animateRoute?: boolean;
+}
 }
 
 // Script tag injection — bypasses Metro bundler entirely
@@ -42,7 +44,7 @@ function injectScript(src: string): Promise<void> {
 }
 
 // ====== Web: MapLibre GL 4 with globe projection ======
-function WebGlobe({ locations, onLocationPress }: Props) {
+function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
@@ -134,9 +136,9 @@ function WebGlobe({ locations, onLocationPress }: Props) {
             el.onclick = () => onLocationPress?.(loc);
           });
 
-          // ===== Vehicle on great circle arc =====
+          // ===== Vehicle on great circle arc — only if user triggered via AI generation =====
           const validLocs = locations.filter((l) => l.lat && l.lng && !isNaN(l.lat) && !isNaN(l.lng));
-          if (validLocs.length >= 2) {
+          if (validLocs.length >= 2 && animateRoute) {
             const routeCoords = validLocs.map((l) => [l.lng, l.lat]);
             const turfScript = document.createElement("script");
             turfScript.src = "https://cdn.jsdelivr.net/npm/@turf/turf@7/turf.min.js";

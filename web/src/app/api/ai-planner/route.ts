@@ -9,14 +9,21 @@ interface Place {
   coverImage: string | null;
   transportationToNext: string;
 }
+interface CostItem { category: string; amount: number; currency: string; note: string; }
 interface DayPlan { day: number; theme: string; places: Place[]; }
-interface TripPlan { title: string; totalDays: number; summary: string; days: DayPlan[]; }
+interface TripPlan { title: string; totalDays: number; summary: string; days: DayPlan[]; costBreakdown: CostItem[]; }
 
 const SYSTEM_PROMPT = `You are a professional trip planner. Output STRICT JSON:
 {
   "title": "行程标题",
   "totalDays": N,
   "summary": "一句话概括",
+  "costBreakdown": [
+    { "category": "交通", "amount": 800, "currency": "CNY", "note": "往返高铁" },
+    { "category": "住宿", "amount": 1500, "currency": "CNY", "note": "4晚经济型酒店" },
+    { "category": "餐饮", "amount": 600, "currency": "CNY", "note": "每日三餐+小吃" },
+    { "category": "门票", "amount": 300, "currency": "CNY", "note": "景点门票合计" }
+  ],
   "days": [{
     "day": 1, "theme": "主题",
     "places": [{
@@ -26,7 +33,7 @@ const SYSTEM_PROMPT = `You are a professional trip planner. Output STRICT JSON:
     }]
   }]
 }
-Rules: Real lat/lng for every place. 3-5 places/day max. Chinese text. JSON only, no markdown.`;
+Rules: Real lat/lng for every place. Real cost estimates in CNY based on destination prices. 3-5 places/day max. Chinese text. JSON only, no markdown.`;
 
 // ========== Fallback generator ==========
 function fallbackPlan(request: string): TripPlan {
@@ -115,23 +122,33 @@ export async function POST(request: Request) {
   }
 }
 
-// ========== Build categorized display ==========
+// ========== Build categorized display from AI data ==========
 function buildCategories(plan: TripPlan) {
   const places = plan.days.flatMap((d) => d.places.map((p) => ({ ...p, day: d.day, theme: d.theme })));
+
+  // Use AI-generated cost breakdown if available, otherwise estimate
+  const cost = (plan.costBreakdown?.length || 0) > 0
+    ? plan.costBreakdown.map((c) => ({
+        item: c.category,
+        amount: `¥${c.amount}`,
+        note: c.note,
+      }))
+    : [
+        { item: "交通", amount: `¥${plan.totalDays * 150}` },
+        { item: "住宿", amount: `¥${plan.totalDays * 250}` },
+        { item: "餐饮", amount: `¥${plan.totalDays * 120}` },
+        { item: "门票", amount: "¥300" },
+      ];
+
   return {
     spots: places.map((p) => ({ name: p.placeName, desc: p.description, day: p.day })),
-    food: places.filter((_, i) => i % 2 === 0).map((p) => ({ name: `${p.placeName}附近美食`, desc: "当地特色美食推荐" })),
+    food: places.map((p) => ({ name: `${p.placeName}附近美食`, desc: p.description })),
     weather: plan.days.map((d) => ({
       day: `第${d.day}天`,
-      desc: "晴转多云 18°~25° 适宜出行",
+      desc: "请查看当地实时天气",
       icon: "🌤️",
     })),
-    cost: [
-      { item: "交通", amount: "¥800-1500" },
-      { item: "住宿", amount: `¥${plan.totalDays * 200}-${plan.totalDays * 500}` },
-      { item: "餐饮", amount: `¥${plan.totalDays * 100}-${plan.totalDays * 200}` },
-      { item: "门票", amount: "¥200-400" },
-    ],
+    cost,
     routes: plan.days.map((d, i) => ({
       from: d.places[0]?.placeName || "出发地",
       to: d.places[d.places.length - 1]?.placeName || "目的地",

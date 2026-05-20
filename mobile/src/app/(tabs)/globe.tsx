@@ -110,6 +110,7 @@ export default function AIGlobeScreen() {
         locations={locations}
         focusLocation={focusLoc}
         isGenerating={generating}
+        animateRoute={!!aiResult}
         onLocationPress={(loc) => {
           const trip = trips.find((t:any) => t.title === loc.name);
           if (trip) router.push(`/trips/${trip.id}`);
