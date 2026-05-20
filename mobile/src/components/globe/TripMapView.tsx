@@ -52,27 +52,32 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
         if (!maplibregl) throw new Error("MapLibre not loaded");
 
         const isDark = (window as any).__tripapp_theme === "dark";
-        const tile = isDark
-          ? "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png"
-          : "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png";
 
+        // Use OSM tiles — supports zoom 0-19, globe looks best at zoom 1-2
         const map = new maplibregl.Map({
           container,
           style: {
             version: 8,
-            sources: { basemap: { type: "raster", tiles: [tile], tileSize: 256, maxzoom: 19 } },
-            layers: [{ id: "basemap", type: "raster", source: "basemap" }],
+            sources: { osm: { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 19, attribution: "© OSM" } },
+            layers: [{ id: "osm", type: "raster", source: "osm" }],
           },
           center: [104.07, 35.5],
-          zoom: 2.0,                  // Low zoom → sphere shape is visible
-          projection: "globe",        // True 3D globe
-          pitch: 30,
+          zoom: 1.8,               // Ultra-low zoom → entire sphere visible
+          projection: "globe",      // True 3D globe projection
+          pitch: 25,
           attributionControl: false,
         });
 
         map.on("style.load", () => {
           try {
-            map.setFog({ color: "#f0f4fa", "high-color": "#d0ddf0", "horizon-blend": 0.08, "space-color": "#0a1020", "star-intensity": 0.25 });
+            // Strong fog to make globe edges clearly visible
+            map.setFog({
+              color: isDark ? "#050510" : "#d8e4f0",
+              "high-color": isDark ? "#101830" : "#c0d4e8",
+              "horizon-blend": 0.3,
+              "space-color": "#050510",
+              "star-intensity": 0.4,
+            });
           } catch {}
           // Markers
           locations.forEach((loc) => {
@@ -189,7 +194,7 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
   return (
     <div ref={containerRef} style={{ width: "100%", height: "100%", position: "relative" }}>
       {status === "loading" && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#0a1020", zIndex: 1 }}>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#050510", zIndex: 1 }}>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🌍</div>
             <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, fontFamily: "system-ui" }}>加载 3D 地球...</div>
@@ -197,7 +202,7 @@ function WebGlobe({ locations, onLocationPress, animateRoute }: Props) {
         </div>
       )}
       {status === "error" && (
-        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#0a1020", zIndex: 1 }}>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "#050510", zIndex: 1 }}>
           <div style={{ textAlign: "center", padding: 20 }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
             <div style={{ color: "rgba(255,255,255,0.7)", fontSize: 15, fontWeight: 600 }}>加载失败</div>
